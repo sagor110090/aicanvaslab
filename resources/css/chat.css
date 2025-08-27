@@ -1,0 +1,373 @@
+/* Modern Chat Styling */
+
+/* Smooth scrollbar for messages */
+.chat-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+}
+
+.dark .chat-messages::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+    background: rgb(156, 163, 175);
+    border-radius: 10px;
+}
+
+.dark .chat-messages::-webkit-scrollbar-thumb {
+    background: rgb(75, 85, 99);
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: rgb(107, 114, 128);
+}
+
+.dark .chat-messages::-webkit-scrollbar-thumb:hover {
+    background: rgb(107, 114, 128);
+}
+
+/* Glass morphism effect */
+.glass-morphism {
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    background-color: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(209, 213, 219, 0.3);
+}
+
+/* Gradient text */
+.gradient-text {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Modern shadows */
+.modern-shadow {
+    box-shadow: 
+        0 1px 3px rgba(0, 0, 0, 0.12),
+        0 1px 2px rgba(0, 0, 0, 0.24);
+}
+
+.modern-shadow-lg {
+    box-shadow: 
+        0 10px 15px -3px rgba(0, 0, 0, 0.1),
+        0 4px 6px -2px rgba(0, 0, 0, 0.05),
+        0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+/* Animated gradient borders */
+.gradient-border {
+    position: relative;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2px;
+    border-radius: 16px;
+}
+
+.gradient-border-content {
+    background: white;
+    border-radius: 14px;
+    padding: 16px;
+}
+
+/* Pulse animation for loading */
+@keyframes pulse-soft {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.pulse-soft {
+    animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Modern button styles */
+.btn-modern {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.btn-modern::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn-modern:hover::before {
+    left: 100%;
+}
+
+/* Typography improvements */
+.font-display {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-variation-settings: "opsz" 28;
+}
+
+.text-balance {
+    text-wrap: balance;
+}
+
+/* Message bubble improvements */
+.message-bubble {
+    position: relative;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.6;
+    max-width: 100%;
+    width: auto;
+    display: inline-block;
+}
+
+.message-bubble div {
+    max-width: 100%;
+    overflow: visible;
+    word-break: break-word;
+    hyphens: auto;
+}
+
+/* Ensure messages container takes full height */
+.chat-messages {
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-messages > div {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+/* Responsive design improvements */
+@media (max-width: 768px) {
+    .chat-sidebar {
+        width: 100%;
+        max-width: 320px;
+        position: fixed;
+        left: -100%;
+        top: 0;
+        height: 100vh;
+        z-index: 50;
+        transition: left 0.3s ease;
+    }
+    
+    .chat-sidebar.open {
+        left: 0;
+    }
+    
+    .chat-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 40;
+        display: none;
+    }
+    
+    .chat-overlay.active {
+        display: block;
+    }
+}
+
+/* Focus styles */
+.focus-ring {
+    transition: all 0.2s ease;
+}
+
+.focus-ring:focus {
+    outline: none;
+    ring-offset-2: 2px;
+    ring-2: 2px;
+    ring-color: #667eea;
+    ring-offset-color: white;
+}
+
+/* Loading animation improvements */
+.typing-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.typing-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: typing 1.4s infinite;
+}
+
+.typing-dot:nth-child(1) { animation-delay: 0ms; }
+.typing-dot:nth-child(2) { animation-delay: 160ms; }
+.typing-dot:nth-child(3) { animation-delay: 320ms; }
+
+@keyframes typing {
+    0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.3;
+    }
+    30% {
+        transform: translateY(-8px);
+        opacity: 1;
+    }
+}
+
+/* Streaming cursor animation */
+@keyframes cursor-blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+.streaming-cursor {
+    animation: cursor-blink 1s infinite;
+}
+
+/* Typewriter effect */
+.typewriter {
+    overflow: hidden;
+    white-space: nowrap;
+    animation: typewriter 3s steps(40, end);
+}
+
+@keyframes typewriter {
+    from { width: 0; }
+    to { width: 100%; }
+}
+
+/* Dark mode transitions */
+* {
+    transition-property: background-color, border-color;
+    transition-duration: 200ms;
+}
+
+/* Custom focus styles */
+input:focus,
+textarea:focus,
+button:focus {
+    outline: none;
+}
+
+/* Sidebar scrollbar */
+.sidebar-scroll::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.5);
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(156, 163, 175, 0.8);
+}
+
+.dark .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: rgba(75, 85, 99, 0.5);
+}
+
+.dark .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(75, 85, 99, 0.8);
+}
+
+/* Message animations */
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.message-enter-left {
+    animation: slideInLeft 0.3s ease-out;
+}
+
+.message-enter-right {
+    animation: slideInRight 0.3s ease-out;
+}
+
+/* Model dropdown scrollbar */
+.model-dropdown::-webkit-scrollbar {
+    width: 4px;
+}
+
+.model-dropdown::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.model-dropdown::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.4);
+    border-radius: 2px;
+    transition: background-color 0.2s;
+}
+
+.model-dropdown::-webkit-scrollbar-thumb:hover {
+    background: rgba(156, 163, 175, 0.7);
+}
+
+.dark .model-dropdown::-webkit-scrollbar-thumb {
+    background: rgba(75, 85, 99, 0.4);
+}
+
+.dark .model-dropdown::-webkit-scrollbar-thumb:hover {
+    background: rgba(75, 85, 99, 0.7);
+}
+
+/* Smooth scrolling for dropdowns */
+.overflow-y-auto {
+    scroll-behavior: smooth;
+}
+
+/* Dropdown fade-in animation */
+@keyframes dropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.dropdown-enter {
+    animation: dropdownFadeIn 0.15s ease-out;
+}
