@@ -35,8 +35,9 @@ return [
         ],
     ],
 
-    'openrouter' => [
-        'api_key' => env('OPENROUTER_API_KEY'),
+    'deepseek' => [
+        'api_key' => env('DEEPSEEK_API_KEY'),
+        'base_url' => env('DEEPSEEK_BASE_URL', 'https://api.deepseek.com'),
     ],
 
 ];

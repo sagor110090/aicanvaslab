@@ -2,18 +2,17 @@
 
 namespace App\Services;
 
-use App\Models\AiModel;
 use App\Models\Chat;
 use App\Models\Message;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class OpenRouterService
+class DeepSeekService
 {
     public function streamChat(Chat $chat, string $userMessage, array $images = []): void
     {
         set_time_limit(300);
-        
+
         $aiModel = $chat->aiModel;
         $messages = $this->prepareMessages($chat, $userMessage, $images);
 
@@ -27,7 +26,7 @@ class OpenRouterService
 
         $chat->updateActivity();
 
-        if (!$chat->title) {
+        if (! $chat->title) {
             $chat->generateTitle();
         }
 
@@ -42,120 +41,103 @@ class OpenRouterService
                 'stream' => true,
             ];
 
-            Log::info('Starting real-time streaming for chat: ' . $chat->id, [
+            Log::info('Starting DeepSeek streaming for chat: '.$chat->id, [
                 'model' => $aiModel->model_id,
                 'message_count' => count($messages),
-                'payload' => $payload
+                'payload' => $payload,
             ]);
 
-            // First, let's try a simple non-streaming approach to test the API
-            if (!config('services.openrouter.api_key')) {
-                throw new \Exception('OpenRouter API key is not configured');
+            if (! config('services.deepseek.api_key')) {
+                throw new \Exception('DeepSeek API key is not configured');
             }
 
-            // Test non-streaming first to verify the request works
-            Log::info('Testing non-streaming request first');
-            $testResponse = Http::withHeaders([
-                'Authorization' => 'Bearer ' . config('services.openrouter.api_key'),
-                'Content-Type' => 'application/json',
-                'X-Title' => config('app.name', 'Laravel App'),
-            ])->timeout(60)->post('https://openrouter.ai/api/v1/chat/completions', array_merge($payload, ['stream' => false]));
+            $baseUrl = config('services.deepseek.base_url', 'https://api.deepseek.com');
 
-            if ($testResponse->failed()) {
-                Log::error('Non-streaming test failed', [
-                    'status' => $testResponse->status(),
-                    'body' => $testResponse->body()
-                ]);
-                throw new \Exception('OpenRouter API request failed: ' . $testResponse->body());
-            }
-
-            Log::info('Non-streaming test successful, proceeding with streaming');
-
-            // Use cURL for streaming since Laravel HTTP client doesn't support streaming in this version
+            // Use cURL for streaming
             $ch = curl_init();
             curl_setopt_array($ch, [
-                CURLOPT_URL => 'https://openrouter.ai/api/v1/chat/completions',
+                CURLOPT_URL => $baseUrl.'/chat/completions',
                 CURLOPT_POST => true,
                 CURLOPT_POSTFIELDS => json_encode($payload),
                 CURLOPT_HTTPHEADER => [
-                    'Authorization: Bearer ' . config('services.openrouter.api_key'),
+                    'Authorization: Bearer '.config('services.deepseek.api_key'),
                     'Content-Type: application/json',
-                    'X-Title: ' . config('app.name', 'Laravel App'),
                 ],
-                CURLOPT_WRITEFUNCTION => function($ch, $data) use (&$assistantMessage) {
+                CURLOPT_WRITEFUNCTION => function ($ch, $data) use (&$assistantMessage) {
                     static $buffer = '';
                     $buffer .= $data;
-                    
+
                     // Process complete lines
                     while (($pos = strpos($buffer, "\n")) !== false) {
                         $line = substr($buffer, 0, $pos);
                         $buffer = substr($buffer, $pos + 1);
-                        
+
                         $line = trim($line);
                         if (empty($line) || strpos($line, 'data: ') !== 0) {
                             continue;
                         }
-                        
+
                         $jsonData = substr($line, 6);
-                        
+
                         if ($jsonData === '[DONE]') {
                             Log::info('Received [DONE] signal');
+
                             return strlen($data);
                         }
-                        
+
                         try {
                             $json = json_decode($jsonData, true);
                             if (json_last_error() !== JSON_ERROR_NONE) {
                                 continue;
                             }
-                            
+
                             if (isset($json['choices'][0]['delta']['content'])) {
                                 $content = $json['choices'][0]['delta']['content'];
                                 $assistantMessage .= $content;
-                                
+
                                 // Log the content being streamed for debugging
-                                Log::debug('Streaming content chunk: "' . $content . '"');
-                                
+                                Log::debug('DeepSeek streaming content chunk: "'.$content.'"');
+
                                 // Output immediately for real-time streaming
-                                echo "data: " . $content . "\n\n";
+                                echo 'data: '.$content."\n\n";
                                 if (ob_get_level()) {
                                     ob_flush();
                                 }
                                 flush();
                             }
-                            
+
                             // Check for errors in the stream
                             if (isset($json['error'])) {
-                                Log::error('OpenRouter streaming error in response: ' . json_encode($json['error']));
-                                throw new \Exception('API Error: ' . ($json['error']['message'] ?? 'Unknown error'));
+                                Log::error('DeepSeek streaming error in response: '.json_encode($json['error']));
+                                throw new \Exception('API Error: '.($json['error']['message'] ?? 'Unknown error'));
                             }
-                            
+
                         } catch (\Exception $e) {
-                            Log::warning('Failed to parse streaming chunk: ' . $e->getMessage());
+                            Log::warning('Failed to parse DeepSeek streaming chunk: '.$e->getMessage());
                         }
                     }
-                    
+
                     return strlen($data);
                 },
                 CURLOPT_TIMEOUT => 300,
                 CURLOPT_CONNECTTIMEOUT => 30,
             ]);
-            
-            Log::info('Starting cURL streaming request');
+
+            Log::info('Starting DeepSeek cURL streaming request');
             $result = curl_exec($ch);
-            
+
             if ($result === false) {
                 $error = curl_error($ch);
                 curl_close($ch);
-                throw new \Exception('cURL error: ' . $error);
+                throw new \Exception('cURL error: '.$error);
             }
-            
+
             curl_close($ch);
 
-            Log::info('cURL streaming completed, message length: ' . strlen($assistantMessage));
+            Log::info('DeepSeek streaming completed, message length: '.strlen($assistantMessage));
 
             // Save assistant message
-            if (!empty($assistantMessage)) {
+            if (! empty($assistantMessage)) {
                 Message::create([
                     'chat_id' => $chat->id,
                     'role' => 'assistant',
@@ -164,34 +146,35 @@ class OpenRouterService
             }
 
         } catch (\Exception $e) {
-            Log::error('OpenRouter streaming error: ' . $e->getMessage(), [
+            Log::error('DeepSeek streaming error: '.$e->getMessage(), [
                 'chat_id' => $chat->id,
                 'model' => $aiModel->model_id,
-                'exception_class' => get_class($e)
+                'exception_class' => get_class($e),
             ]);
-            
+
             // If streaming fails, try fallback to non-streaming
-            if (empty($assistantMessage) && !str_contains($e->getMessage(), 'rate-limited')) {
+            if (empty($assistantMessage) && ! str_contains($e->getMessage(), 'rate-limited')) {
                 Log::info('Attempting fallback to non-streaming mode');
                 try {
                     $fallbackResponse = $this->sendMessage($chat, $userMessage, $images);
-                    if (!empty($fallbackResponse)) {
-                        echo "data: " . $fallbackResponse . "\n\n";
+                    if (! empty($fallbackResponse)) {
+                        echo 'data: '.$fallbackResponse."\n\n";
                         flush();
                         Log::info('Fallback successful');
+
                         return;
                     }
                 } catch (\Exception $fallbackError) {
-                    Log::warning('Fallback also failed: ' . $fallbackError->getMessage());
+                    Log::warning('Fallback also failed: '.$fallbackError->getMessage());
                 }
             }
-            
+
             $errorMessage = 'Sorry, I encountered an error while processing your request.';
-            
+
             if (str_contains($e->getMessage(), 'rate-limited') || str_contains($e->getMessage(), 'Rate limit')) {
                 $errorMessage = 'The AI model is temporarily rate-limited. Please try again in a few minutes.';
             } elseif (str_contains($e->getMessage(), 'insufficient_quota')) {
-                $errorMessage = 'API quota exceeded. Please check your OpenRouter account.';
+                $errorMessage = 'API quota exceeded. Please check your DeepSeek account.';
             } elseif (str_contains($e->getMessage(), 'model_not_found')) {
                 $errorMessage = 'The selected AI model is not available.';
             } elseif (str_contains($e->getMessage(), 'timeout')) {
@@ -199,10 +182,10 @@ class OpenRouterService
             } elseif (str_contains($e->getMessage(), 'Authentication failed') || str_contains($e->getMessage(), 'API key')) {
                 $errorMessage = 'Authentication failed. Please check your API key configuration.';
             } elseif (str_contains($e->getMessage(), 'not configured')) {
-                $errorMessage = 'OpenRouter API key is not configured. Please add OPENROUTER_API_KEY to your .env file.';
+                $errorMessage = 'DeepSeek API key is not configured. Please add DEEPSEEK_API_KEY to your .env file.';
             }
-            
-            echo "data: " . json_encode(['error' => $errorMessage]) . "\n\n";
+
+            echo 'data: '.json_encode(['error' => $errorMessage])."\n\n";
             flush();
         }
     }
@@ -210,7 +193,7 @@ class OpenRouterService
     public function sendMessage(Chat $chat, string $userMessage, array $images = []): string
     {
         set_time_limit(120);
-        
+
         $aiModel = $chat->aiModel;
         $messages = $this->prepareMessages($chat, $userMessage, $images);
 
@@ -223,7 +206,7 @@ class OpenRouterService
 
         $chat->updateActivity();
 
-        if (!$chat->title) {
+        if (! $chat->title) {
             $chat->generateTitle();
         }
 
@@ -236,21 +219,22 @@ class OpenRouterService
                 'stream' => false,
             ];
 
-            Log::info('OpenRouter request', [
+            Log::info('DeepSeek request', [
                 'model' => $aiModel->model_id,
                 'message_count' => count($messages),
                 'chat_id' => $chat->id,
-                'new_message_preview' => substr($userMessage, 0, 50) . '...'
+                'new_message_preview' => substr($userMessage, 0, 50).'...',
             ]);
 
+            $baseUrl = config('services.deepseek.base_url', 'https://api.deepseek.com');
+
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . config('services.openrouter.api_key'),
+                'Authorization' => 'Bearer '.config('services.deepseek.api_key'),
                 'Content-Type' => 'application/json',
-                'X-Title' => config('app.name', 'Laravel App'),
-            ])->timeout(60)->post('https://openrouter.ai/api/v1/chat/completions', $payload);
+            ])->timeout(60)->post($baseUrl.'/chat/completions', $payload);
 
             if ($response->failed()) {
-                throw new \Exception('OpenRouter API request failed: ' . $response->body());
+                throw new \Exception('DeepSeek API request failed: '.$response->body());
             }
 
             $responseData = $response->json();
@@ -265,16 +249,16 @@ class OpenRouterService
             return $assistantMessage;
 
         } catch (\Exception $e) {
-            Log::error('OpenRouter API error: ' . $e->getMessage());
-            
+            Log::error('DeepSeek API error: '.$e->getMessage());
+
             $errorMessage = 'Sorry, I encountered an error while processing your request.';
-            
+
             if (str_contains($e->getMessage(), 'rate-limited')) {
                 $errorMessage = 'The AI model is temporarily rate-limited.';
             } elseif (str_contains($e->getMessage(), 'insufficient_quota')) {
                 $errorMessage = 'API quota exceeded.';
             }
-            
+
             throw new \Exception($errorMessage);
         }
     }
@@ -321,7 +305,7 @@ class OpenRouterService
             'content' => $currentMessage,
         ];
 
-        if (!empty($images) && $chat->aiModel->supports_images) {
+        if (! empty($images) && $chat->aiModel->supports_images) {
             $currentMessageData['content'] = [
                 ['type' => 'text', 'text' => $currentMessage],
             ];
