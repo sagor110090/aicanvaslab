@@ -13,7 +13,6 @@ class AiModel extends Model
     protected $fillable = [
         'name',
         'model_id',
-        'provider',
         'supports_images',
         'is_active',
         'max_tokens',

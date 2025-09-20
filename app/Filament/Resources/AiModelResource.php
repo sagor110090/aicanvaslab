@@ -35,16 +35,9 @@ class AiModelResource extends Resource
                 Forms\Components\TextInput::make('model_id')
                     ->required()
                     ->maxLength(255)
-                    ->label('Model ID (OpenRouter)')
-                    ->placeholder('openai/gpt-4-turbo')
-                    ->helperText('The model identifier used in OpenRouter API'),
-                    
-                Forms\Components\Select::make('provider')
-                    ->required()
-                    ->options([
-                        'openrouter' => 'OpenRouter',
-                    ])
-                    ->default('openrouter'),
+                    ->label('Model ID (DeepSeek)')
+                    ->placeholder('deepseek-v3')
+                    ->helperText('The model identifier used in DeepSeek API'),
                     
                 Forms\Components\Toggle::make('supports_images')
                     ->label('Supports Image Input')
@@ -95,10 +88,7 @@ class AiModelResource extends Resource
                     ->copyMessage('Model ID copied')
                     ->limit(30),
                     
-                Tables\Columns\TextColumn::make('provider')
-                    ->badge()
-                    ->color('primary'),
-                    
+                                    
                 Tables\Columns\IconColumn::make('supports_images')
                     ->label('Images')
                     ->boolean()
