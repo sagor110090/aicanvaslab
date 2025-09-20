@@ -267,6 +267,14 @@ class DeepSeekService
     {
         $messages = [];
 
+        // Add system prompt if available
+        if ($chat->systemPrompt) {
+            $messages[] = [
+                'role' => 'system',
+                'content' => $chat->systemPrompt->prompt,
+            ];
+        }
+
         // Only include last 6 messages (3 exchanges) to reduce token usage and avoid rate limits
         $previousMessages = $chat->messages()
             ->orderBy('created_at', 'desc')

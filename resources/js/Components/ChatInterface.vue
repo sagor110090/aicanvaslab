@@ -114,6 +114,65 @@
                     <div class="flex items-center justify-between px-3 pb-3">
                         <!-- Left Side Controls -->
                         <div class="flex items-center gap-2">
+                            <!-- System Prompt Switcher -->
+                            <div class="relative" ref="systemPromptDropdownRef">
+                                <button
+                                    @click.stop="showSystemPromptSwitcher = !showSystemPromptSwitcher"
+                                    class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    <span>{{ currentChat.system_prompt?.name || 'System Prompt' }}</span>
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </button>
+                                
+                                <!-- System Prompt Dropdown -->
+                                <div v-if="showSystemPromptSwitcher" class="absolute bottom-full left-0 mb-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-10 max-h-64 dropdown-enter">
+                                    <div class="text-xs font-medium text-gray-500 dark:text-gray-400 px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                                        Select System Prompt
+                                    </div>
+                                    <div class="overflow-y-auto max-h-56 py-1 system-prompt-dropdown">
+                                        <button
+                                            v-for="prompt in availableSystemPrompts"
+                                            :key="prompt.id"
+                                            @click="switchSystemPrompt(prompt)"
+                                            :class="[
+                                                'w-full text-left px-3 py-2.5 transition-colors border-l-2',
+                                                prompt.id === currentChat.system_prompt?.id 
+                                                    ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-500' 
+                                                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+                                            ]"
+                                        >
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="font-medium truncate">{{ prompt.name }}</div>
+                                                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{{ prompt.description }}</div>
+                                                </div>
+                                                <div class="flex-shrink-0 ml-2">
+                                                    <svg v-if="prompt.id === currentChat.system_prompt?.id" class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                        </button>
+                                        <button
+                                            @click="clearSystemPrompt"
+                                            class="w-full text-left px-3 py-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 border-transparent hover:border-gray-300 dark:hover:border-gray-600"
+                                        >
+                                            <div class="flex items-center gap-2">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                </svg>
+                                                <span>Clear System Prompt</span>
+                                            </div>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <!-- Model Switcher -->
                             <div class="relative" ref="modelDropdownRef">
                                 <button
@@ -217,6 +276,7 @@ import { ref, reactive, onMounted, onUnmounted, nextTick, watch, inject } from '
 const props = defineProps({
     chat: Object,
     initialMessages: Array,
+    systemPrompts: Array,
 });
 
 const emit = defineEmits(['send-message', 'switch-model']);
@@ -227,8 +287,11 @@ const isLoading = ref(false);
 const selectedImages = ref([]);
 const messagesContainer = ref(null);
 const showModelSwitcher = ref(false);
+const showSystemPromptSwitcher = ref(false);
 const availableModels = inject('availableModels', []);
+const availableSystemPrompts = ref(props.systemPrompts || []);
 const modelDropdownRef = ref(null);
+const systemPromptDropdownRef = ref(null);
 const currentChat = reactive({ ...props.chat });
 
 const sendMessage = async () => {
@@ -350,6 +413,66 @@ const handleEnterKey = (event) => {
     }
 };
 
+const switchSystemPrompt = async (prompt) => {
+    showSystemPromptSwitcher.value = false;
+    
+    try {
+        const response = await fetch(`/api/chats/${currentChat.uuid}/system-prompt`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+            },
+            body: JSON.stringify({
+                system_prompt_id: prompt.id
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update system prompt');
+        }
+
+        const data = await response.json();
+        
+        // Update the local chat object with the new system prompt
+        Object.assign(currentChat, data.chat);
+    } catch (error) {
+        console.error('Error switching system prompt:', error);
+        alert('Failed to switch system prompt. Please try again.');
+    }
+};
+
+const clearSystemPrompt = async () => {
+    showSystemPromptSwitcher.value = false;
+    
+    try {
+        const response = await fetch(`/api/chats/${currentChat.uuid}/system-prompt`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.head.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+            },
+            body: JSON.stringify({
+                system_prompt_id: null
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to clear system prompt');
+        }
+
+        const data = await response.json();
+        
+        // Update the local chat object
+        Object.assign(currentChat, data.chat);
+    } catch (error) {
+        console.error('Error clearing system prompt:', error);
+        alert('Failed to clear system prompt. Please try again.');
+    }
+};
+
 const switchModel = async (model) => {
     showModelSwitcher.value = false;
     
@@ -383,10 +506,13 @@ const switchModel = async (model) => {
     }
 };
 
-// Handle click outside to close dropdown
+// Handle click outside to close dropdowns
 const handleClickOutside = (event) => {
     if (modelDropdownRef.value && !modelDropdownRef.value.contains(event.target)) {
         showModelSwitcher.value = false;
+    }
+    if (systemPromptDropdownRef.value && !systemPromptDropdownRef.value.contains(event.target)) {
+        showSystemPromptSwitcher.value = false;
     }
 };
 
@@ -399,6 +525,10 @@ watch(() => props.chat, (newChat) => {
     if (newChat) {
         Object.assign(currentChat, newChat);
     }
+}, { immediate: true });
+
+watch(() => props.systemPrompts, (newPrompts) => {
+    availableSystemPrompts.value = newPrompts || [];
 }, { immediate: true });
 
 onMounted(() => {

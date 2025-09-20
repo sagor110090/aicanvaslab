@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AiModel;
 use App\Models\Chat;
+use App\Models\SystemPrompt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -37,9 +38,15 @@ class ChatPageController extends Controller
             ->select('id', 'name', 'description', 'supports_images')
             ->get();
 
+        $systemPrompts = SystemPrompt::active()
+            ->ordered()
+            ->select('id', 'name', 'description', 'prompt')
+            ->get();
+
         return Inertia::render('Chat/Index', [
             'chats' => $chats,
             'models' => $models,
+            'systemPrompts' => $systemPrompts,
             'user' => Auth::user(),
         ]);
     }
@@ -84,10 +91,16 @@ class ChatPageController extends Controller
             ->select('id', 'name', 'description', 'supports_images')
             ->get();
 
+        $systemPrompts = SystemPrompt::active()
+            ->ordered()
+            ->select('id', 'name', 'description', 'prompt')
+            ->get();
+
         return Inertia::render('Chat/Show', [
             'chat' => $chat,
             'chats' => $chats,
             'models' => $models,
+            'systemPrompts' => $systemPrompts,
             'user' => Auth::user(),
         ]);
     }

@@ -105,6 +105,7 @@
                 v-else
                 :chat="currentChat"
                 :messages="messages"
+                :system-prompts="props.systemPrompts"
                 @send-message="sendMessage"
             />
         </div>
@@ -121,12 +122,13 @@ import axios from 'axios';
 const props = defineProps({
     chats: Array,
     models: Array,
+    systemPrompts: Array,
     user: Object,
 });
 
-// Provide models to child components
+// Provide models and system prompts to child components
 provide('availableModels', props.models);
-
+provide('availableSystemPrompts', props.systemPrompts);
 
 const currentChat = ref(null);
 const messages = ref([]);

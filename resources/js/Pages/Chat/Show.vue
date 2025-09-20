@@ -16,6 +16,7 @@
             <ChatInterface 
                 :chat="chat"
                 :initial-messages="chat.messages"
+                :system-prompts="props.systemPrompts"
                 @send-message="sendMessage"
             />
         </div>
@@ -23,7 +24,7 @@
 </template>
 
 <script setup>
-import { ref, provide } from 'vue';
+import { provide } from 'vue';
 import { router } from '@inertiajs/vue3';
 import ChatSidebar from '@/Components/ChatSidebar.vue';
 import ChatInterface from '@/Components/ChatInterface.vue';
@@ -33,11 +34,13 @@ const props = defineProps({
     chat: Object,
     chats: Array,
     models: Array,
+    systemPrompts: Array,
     user: Object,
 });
 
-// Provide models to child components
+// Provide models and system prompts to child components
 provide('availableModels', props.models);
+provide('availableSystemPrompts', props.systemPrompts);
 
 const createNewChat = async (modelId) => {
     try {

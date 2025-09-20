@@ -311,6 +311,41 @@ class ChatController extends Controller
         ]);
     }
 
+    public function updateSystemPrompt(Request $request, $uuid)
+    {
+        $request->validate([
+            'system_prompt_id' => 'nullable|exists:system_prompts,id',
+        ]);
+
+        $userId = Auth::id();
+        $anonymousId = $this->getAnonymousId($request);
+
+        $chat = Chat::where('uuid', $uuid)
+            ->where(function ($query) use ($userId, $anonymousId) {
+                if ($userId) {
+                    $query->where('user_id', $userId);
+                } else {
+                    // For anonymous users, allow access to any chat for cross-domain compatibility
+                    $query->where(function ($subQuery) use ($anonymousId) {
+                        $subQuery->where('anonymous_id', $anonymousId)
+                            ->orWhereNull('user_id');
+                    });
+                }
+            })
+            ->firstOrFail();
+
+        $chat->update([
+            'system_prompt_id' => $request->system_prompt_id,
+        ]);
+
+        $chat->load('systemPrompt');
+
+        return response()->json([
+            'chat' => $chat,
+            'message' => 'System prompt updated successfully.',
+        ]);
+    }
+
     public function deleteChat(Request $request, $uuid)
     {
         $userId = Auth::id();

@@ -17,6 +17,7 @@ class Chat extends Model
         'user_id',
         'anonymous_id',
         'ai_model_id',
+        'system_prompt_id',
         'title',
         'last_activity_at',
     ];
@@ -43,6 +44,11 @@ class Chat extends Model
     public function aiModel(): BelongsTo
     {
         return $this->belongsTo(AiModel::class);
+    }
+
+    public function systemPrompt(): BelongsTo
+    {
+        return $this->belongsTo(SystemPrompt::class);
     }
 
     public function messages(): HasMany
