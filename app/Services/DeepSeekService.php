@@ -318,38 +318,8 @@ class DeepSeekService
             ];
         }
 
-        // Only include last 6 messages (3 exchanges) for better context
-        $previousMessages = $chat->messages()
-            ->orderBy('created_at', 'desc')
-            ->limit(6)
-            ->get()
-            ->reverse();
-
-        foreach ($previousMessages as $message) {
-            if ($message->role === 'assistant' && empty(trim($message->content))) {
-                continue;
-            }
-
-            $messageData = [
-                'role' => $message->role,
-                'content' => $message->content,
-            ];
-
-            if ($message->hasImages() && $chat->aiModel->supports_images) {
-                $messageData['content'] = [
-                    ['type' => 'text', 'text' => $message->content],
-                ];
-
-                foreach ($message->images as $image) {
-                    $messageData['content'][] = [
-                        'type' => 'image_url',
-                        'image_url' => ['url' => $image],
-                    ];
-                }
-            }
-
-            $messages[] = $messageData;
-        }
+        // No previous chat context - only respond to current message
+        // This ensures each query is treated independently
 
         $currentMessageData = [
             'role' => 'user',

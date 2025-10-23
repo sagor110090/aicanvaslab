@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\ChatController;
-use App\Http\Controllers\Api\NewsController;
+
 use App\Http\Controllers\Api\SystemPromptController;
 use Illuminate\Support\Facades\Route;
 
@@ -23,6 +23,4 @@ Route::prefix('system-prompts')->group(function () {
     Route::get('/{id}', [SystemPromptController::class, 'show']);
 });
 
-Route::prefix('news')->group(function () {
-    Route::get('/', [NewsController::class, 'getNews'])->middleware('rate.limit:10,1');
-});
+
