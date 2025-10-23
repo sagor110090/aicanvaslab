@@ -18,7 +18,7 @@ class DeepSeekService
 
     public function streamChat(Chat $chat, string $userMessage, array $images = []): void
     {
-        set_time_limit(300);
+        set_time_limit(600);
 
         $aiModel = $chat->aiModel;
         $messages = $this->prepareMessages($chat, $userMessage, $images);
@@ -123,7 +123,7 @@ class DeepSeekService
 
                     return strlen($data);
                 },
-                CURLOPT_TIMEOUT => 300,
+                CURLOPT_TIMEOUT => 600,
                 CURLOPT_CONNECTTIMEOUT => 30,
             ]);
 
@@ -181,8 +181,10 @@ class DeepSeekService
                 $errorMessage = 'API quota exceeded. Please check your DeepSeek account.';
             } elseif (str_contains($e->getMessage(), 'model_not_found')) {
                 $errorMessage = 'The selected AI model is not available.';
-            } elseif (str_contains($e->getMessage(), 'timeout')) {
-                $errorMessage = 'Request timed out. Please try again.';
+            } elseif (str_contains($e->getMessage(), 'timeout') || str_contains($e->getMessage(), 'Operation timed out')) {
+                $errorMessage = 'The AI service is taking longer than expected due to large search results. Please try a more specific question or wait a moment before trying again.';
+            } elseif (str_contains($e->getMessage(), 'cURL error')) {
+                $errorMessage = 'Network connection issue. Please check your internet connection and try again.';
             } elseif (str_contains($e->getMessage(), 'Authentication failed') || str_contains($e->getMessage(), 'API key')) {
                 $errorMessage = 'Authentication failed. Please check your API key configuration.';
             } elseif (str_contains($e->getMessage(), 'not configured')) {
@@ -196,7 +198,7 @@ class DeepSeekService
 
     public function sendMessage(Chat $chat, string $userMessage, array $images = []): string
     {
-        set_time_limit(120);
+        set_time_limit(300);
 
         $aiModel = $chat->aiModel;
         $messages = $this->prepareMessages($chat, $userMessage, $images);
@@ -236,7 +238,7 @@ class DeepSeekService
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer '.config('services.deepseek.api_key'),
                 'Content-Type' => 'application/json',
-            ])->timeout(30)->post($baseUrl.'/chat/completions', $payload);
+            ])->timeout(60)->post($baseUrl.'/chat/completions', $payload);
 
             if ($response->failed()) {
                 throw new \Exception('DeepSeek API request failed: '.$response->body());
@@ -259,7 +261,9 @@ class DeepSeekService
             $errorMessage = 'Sorry, I encountered an error while processing your request.';
 
             if (str_contains($e->getMessage(), 'timeout') || str_contains($e->getMessage(), 'Operation timed out')) {
-                $errorMessage = 'The AI service is responding slowly. Please try a shorter question or wait a moment before trying again.';
+                $errorMessage = 'The AI service is taking longer than expected due to large search results. Please try a more specific question or wait a moment before trying again.';
+            } elseif (str_contains($e->getMessage(), 'cURL error')) {
+                $errorMessage = 'Network connection issue. Please check your internet connection and try again.';
             } elseif (str_contains($e->getMessage(), 'rate-limited')) {
                 $errorMessage = 'The AI model is temporarily rate-limited. Please try again in a few moments.';
             } elseif (str_contains($e->getMessage(), 'insufficient_quota')) {
@@ -287,14 +291,30 @@ class DeepSeekService
             'content' => $enhancedSystemPrompt,
         ];
 
-        // Check if we need to search for current information
-        $searchResults = $this->webSearchService->searchIfNeeded($currentMessage);
+        // ALWAYS search for current information for every message
+        Log::info('Performing search for message', [
+            'message' => substr($currentMessage, 0, 100),
+        ]);
+
+        $searchResults = $this->webSearchService->performSearch($currentMessage);
 
         if ($searchResults) {
-            // Add search results as context
+            Log::info('Search results found', [
+                'results_length' => strlen($searchResults),
+            ]);
+
+            // Add search results as context - force AI to use it
             $messages[] = [
                 'role' => 'system',
-                'content' => "🔍 **LATEST SEARCH RESULTS**:\n\n".$searchResults."\n\nUse this current information to provide accurate, timely analysis.",
+                'content' => "🚨 **CRITICAL - USE THIS DATA ONLY** 🚨\n\nLATEST SEARCH RESULTS:\n\n".$searchResults."\n\n⚠️ **MANDATORY**: You MUST answer using ONLY this current information. Do NOT use your general knowledge. Base your entire response on these real-time search results.",
+            ];
+        } else {
+            Log::warning('No search results found');
+
+            // Even if no search results, tell AI to acknowledge this
+            $messages[] = [
+                'role' => 'system',
+                'content' => '⚠️ **NO SEARCH RESULTS AVAILABLE** - Current market data could not be retrieved. Please acknowledge this limitation in your response.',
             ];
         }
 
