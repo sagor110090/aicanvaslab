@@ -9,6 +9,13 @@ use Illuminate\Support\Facades\Log;
 
 class DeepSeekService
 {
+    protected WebSearchService $webSearchService;
+
+    public function __construct(WebSearchService $webSearchService)
+    {
+        $this->webSearchService = $webSearchService;
+    }
+
     public function streamChat(Chat $chat, string $userMessage, array $images = []): void
     {
         set_time_limit(300);
@@ -95,11 +102,8 @@ class DeepSeekService
                                 $content = $json['choices'][0]['delta']['content'];
                                 $assistantMessage .= $content;
 
-                                // Log the content being streamed for debugging
-                                Log::debug('DeepSeek streaming content chunk: "'.$content.'"');
-
-                                // Output immediately for real-time streaming
-                                echo 'data: '.$content."\n\n";
+                                // Send clean content chunk as JSON
+                                echo 'data: '.json_encode(['content' => $content])."\n\n";
                                 if (ob_get_level()) {
                                     ob_flush();
                                 }
@@ -228,10 +232,11 @@ class DeepSeekService
 
             $baseUrl = config('services.deepseek.base_url', 'https://api.deepseek.com');
 
+            // Try with shorter timeout first
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer '.config('services.deepseek.api_key'),
                 'Content-Type' => 'application/json',
-            ])->timeout(60)->post($baseUrl.'/chat/completions', $payload);
+            ])->timeout(30)->post($baseUrl.'/chat/completions', $payload);
 
             if ($response->failed()) {
                 throw new \Exception('DeepSeek API request failed: '.$response->body());
@@ -253,10 +258,14 @@ class DeepSeekService
 
             $errorMessage = 'Sorry, I encountered an error while processing your request.';
 
-            if (str_contains($e->getMessage(), 'rate-limited')) {
-                $errorMessage = 'The AI model is temporarily rate-limited.';
+            if (str_contains($e->getMessage(), 'timeout') || str_contains($e->getMessage(), 'Operation timed out')) {
+                $errorMessage = 'The AI service is responding slowly. Please try a shorter question or wait a moment before trying again.';
+            } elseif (str_contains($e->getMessage(), 'rate-limited')) {
+                $errorMessage = 'The AI model is temporarily rate-limited. Please try again in a few moments.';
             } elseif (str_contains($e->getMessage(), 'insufficient_quota')) {
-                $errorMessage = 'API quota exceeded.';
+                $errorMessage = 'API quota exceeded. Please check your DeepSeek account.';
+            } elseif (str_contains($e->getMessage(), 'Model Not Exist') || str_contains($e->getMessage(), 'model_not_found')) {
+                $errorMessage = 'The selected AI model is temporarily unavailable. Please try a different model.';
             }
 
             throw new \Exception($errorMessage);
@@ -267,15 +276,29 @@ class DeepSeekService
     {
         $messages = [];
 
-        // Add system prompt if available
-        if ($chat->systemPrompt) {
+        // Enhanced system prompt with web search capabilities
+        $systemPrompt = $chat->systemPrompt ? $chat->systemPrompt->prompt : '';
+
+        // Add web search instructions to system prompt
+        $enhancedSystemPrompt = $systemPrompt."\n\n".$this->webSearchService->getEnhancedSystemPrompt();
+
+        $messages[] = [
+            'role' => 'system',
+            'content' => $enhancedSystemPrompt,
+        ];
+
+        // Check if we need to search for current information
+        $searchResults = $this->webSearchService->searchIfNeeded($currentMessage);
+
+        if ($searchResults) {
+            // Add search results as context
             $messages[] = [
                 'role' => 'system',
-                'content' => $chat->systemPrompt->prompt,
+                'content' => "🔍 **LATEST SEARCH RESULTS**:\n\n".$searchResults."\n\nUse this current information to provide accurate, timely analysis.",
             ];
         }
 
-        // Only include last 6 messages (3 exchanges) to reduce token usage and avoid rate limits
+        // Only include last 6 messages (3 exchanges) for better context
         $previousMessages = $chat->messages()
             ->orderBy('created_at', 'desc')
             ->limit(6)

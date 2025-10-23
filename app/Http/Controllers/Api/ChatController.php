@@ -24,13 +24,16 @@ class ChatController extends Controller
 
     public function getModels()
     {
-        $models = AiModel::active()
-            ->ordered()
-            ->select('id', 'name', 'description', 'supports_images')
-            ->get();
+        $models = Cache::remember('ai_models_active', now()->addHours(1), function () {
+            return AiModel::active()
+                ->ordered()
+                ->select('id', 'name', 'description', 'supports_images')
+                ->get();
+        });
 
         return response()->json([
             'models' => $models,
+            'cached' => true,
         ]);
     }
 
@@ -104,9 +107,14 @@ class ChatController extends Controller
         set_time_limit(120);
 
         $request->validate([
-            'message' => 'required|string|max:10000',
+            'message' => 'required|string|max:10000|min:1',
             'images' => 'nullable|array',
-            'images.*' => 'string',
+            'images.*' => 'string|regex:/^data:image\/[a-zA-Z]+;base64,/',
+        ], [
+            'message.required' => 'Message cannot be empty.',
+            'message.max' => 'Message is too long. Maximum 10,000 characters allowed.',
+            'message.min' => 'Message cannot be empty.',
+            'images.*.regex' => 'Invalid image format. Only base64 encoded images are allowed.',
         ]);
 
         $userId = Auth::id();
@@ -142,12 +150,21 @@ class ChatController extends Controller
 
             return response()->json([
                 'response' => $response,
+                'success' => true,
             ]);
         } catch (\Exception $e) {
-            Log::error('Chat message error: '.$e->getMessage());
+            Log::error('Chat message error: '.$e->getMessage(), [
+                'chat_uuid' => $uuid,
+                'message_length' => strlen($request->message),
+                'has_images' => ! empty($request->images),
+                'exception' => get_class($e),
+            ]);
+
+            $errorMessage = $this->getReadableErrorMessage($e->getMessage());
 
             return response()->json([
-                'error' => $e->getMessage(),
+                'error' => $errorMessage,
+                'success' => false,
             ], 500);
         }
     }
@@ -156,6 +173,25 @@ class ChatController extends Controller
     {
         // Increase execution time for streaming requests
         set_time_limit(300);
+
+        // Handle both GET and POST requests for streaming
+        if ($request->isMethod('get')) {
+            $message = $request->query('message');
+            $images = $request->query('images');
+            
+            // Validate required fields for GET requests
+            if (empty($message)) {
+                echo 'data: '.json_encode(['type' => 'error', 'error' => 'Message is required'])."\n\n";
+                echo "data: [DONE]\n\n";
+                flush();
+                return;
+            }
+            
+            $request->merge([
+                'message' => $message,
+                'images' => $images ? json_decode($images, true) : [],
+            ]);
+        }
 
         $request->validate([
             'message' => 'required|string|max:10000',

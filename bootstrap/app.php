@@ -15,11 +15,15 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
         ]);
-        
+
         $middleware->api(prepend: [
             \Illuminate\Session\Middleware\StartSession::class,
         ]);
-        
+
+        $middleware->alias([
+            'rate.limit' => \App\Http\Middleware\RateLimitMiddleware::class,
+        ]);
+
         $middleware->validateCsrfTokens(except: [
             'api/*',
         ]);

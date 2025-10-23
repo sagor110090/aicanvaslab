@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\SystemPrompt;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class SystemPromptSeeder extends Seeder
@@ -48,6 +47,17 @@ class SystemPromptSeeder extends Seeder
                 'description' => 'Business strategy and analysis expert',
                 'is_active' => true,
                 'order' => 5,
+            ],
+            [
+                'name' => 'Crypto Trading Assistant',
+                'prompt' => 'You are an expert crypto trading assistant. Provide technical analysis, market insights, and trading strategies for cryptocurrencies. Always include risk management considerations and never provide guaranteed returns. Focus on educational content and help users understand market trends, chart patterns, and trading psychology. 
+
+IMPORTANT: I do not have access to real-time market data or current prices. My knowledge is based on my training data up to my last update. For the latest crypto news and market developments, please use the News tab in this application to get current information from reliable crypto news sources. 
+
+Always remind users to do their own research (DYOR) and never invest more than they can afford to lose.',
+                'description' => 'Specialized for cryptocurrency trading analysis and market insights',
+                'is_active' => true,
+                'order' => 6,
             ],
         ];
 

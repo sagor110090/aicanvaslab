@@ -2,6 +2,7 @@ import './bootstrap';
 import { createApp, h } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
+import 'highlight.js/styles/github-dark.css';
 
 const appName = import.meta.env.VITE_APP_NAME || 'AI Chat';
 

@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\AiModel;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class AiModelSeeder extends Seeder
@@ -15,13 +14,13 @@ class AiModelSeeder extends Seeder
     {
         $models = [
             [
-                'name' => 'DeepSeek R1',
-                'model_id' => 'deepseek-r1',
+                'name' => 'DeepSeek Reasoner',
+                'model_id' => 'deepseek-reasoner',
                 'supports_images' => false,
                 'is_active' => true,
                 'max_tokens' => 8192,
                 'temperature' => 0.7,
-                'description' => 'Latest DeepSeek model with enhanced reasoning and coding capabilities',
+                'description' => 'DeepSeek\'s reasoning model with enhanced logical thinking capabilities',
                 'order' => 1,
             ],
             [
