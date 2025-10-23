@@ -27,11 +27,41 @@
                 </div>
             </div>
             
-
+            <!-- Tabs -->
+            <div class="px-4 sm:px-6">
+                <div class="flex space-x-8 border-b border-gray-200 dark:border-gray-700">
+                    <button
+                        @click="activeTab = 'chat'"
+                        :class="[
+                            'py-2 px-1 border-b-2 font-medium text-sm transition-colors',
+                            activeTab === 'chat'
+                                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                        ]"
+                    >
+                        Chat
+                    </button>
+                    <button
+                        @click="fetchNews()"
+                        :class="[
+                            'py-2 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2',
+                            activeTab === 'news'
+                                ? 'border-green-500 text-green-600 dark:text-green-400'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                        ]"
+                        title="Fetch latest crypto news"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path>
+                        </svg>
+                        News
+                    </button>
+                </div>
+            </div>
         </div>
         
-        <!-- Chat Messages -->
-        <div class="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900/50 chat-messages" ref="messagesContainer">
+        <!-- Chat Messages (shown when activeTab is 'chat') -->
+        <div v-if="activeTab === 'chat'" class="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900/50 chat-messages" ref="messagesContainer">
             <div class="py-4 px-4 sm:px-6 lg:px-8">
                 <div class="space-y-4">
                     <div v-for="(message, index) in messages" :key="index">
@@ -91,7 +121,158 @@
             </div>
         </div>
 
+        <!-- News Content (shown when activeTab is 'news') -->
+        <div v-else-if="activeTab === 'news'" class="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900/50">
+            <div class="py-4 px-4 sm:px-6 lg:px-8">
+                <!-- News Header -->
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Latest Crypto News</h3>
+                        <div class="flex items-center gap-2">
+                            <select
+                                v-model="selectedNewsSource"
+                                @change="fetchNews()"
+                                class="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="">All Sources</option>
+                                <option v-for="source in newsSources" :key="source" :value="source">{{ source }}</option>
+                            </select>
+                            <button
+                                @click="fetchNews()"
+                                :disabled="isLoadingNews"
+                                class="px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                            >
+                                <svg v-if="!isLoadingNews" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
+                                <svg v-else class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span>{{ isLoadingNews ? 'Loading...' : 'Refresh' }}</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- System Prompt Info -->
+                    <div v-if="currentChat.system_prompt" class="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3 mb-4">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span class="text-sm text-purple-800 dark:text-purple-200">
+                                Using system prompt: <strong>{{ currentChat.system_prompt.name }}</strong>
+                            </span>
+                        </div>
+                    </div>
+                </div>
 
+                <!-- News Loading -->
+                <div v-if="isLoadingNews" class="flex items-center justify-center py-12">
+                    <div class="text-center">
+                        <svg class="w-8 h-8 animate-spin text-green-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p class="text-gray-600 dark:text-gray-400">Fetching latest crypto news...</p>
+                    </div>
+                </div>
+
+                <!-- News Error -->
+                <div v-else-if="newsError" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <div>
+                            <h4 class="text-red-800 dark:text-red-200 font-medium">Error Loading News</h4>
+                            <p class="text-red-600 dark:text-red-300 text-sm mt-1">{{ newsError }}</p>
+                            <button @click="fetchNews()" class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 text-sm font-medium mt-2">
+                                Try Again
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- News List -->
+                <div v-else-if="newsItems.length > 0" class="space-y-4">
+                    <div
+                        v-for="(article, index) in newsItems"
+                        :key="index"
+                        class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow"
+                    >
+                        <div class="flex items-start gap-3">
+                            <div class="flex-shrink-0">
+                                <div class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="flex-1">
+                                        <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                                            <a :href="article.url" target="_blank" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                                                {{ article.title }}
+                                            </a>
+                                        </h4>
+                                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">{{ article.description }}</p>
+                                        <div class="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                                            <span class="inline-flex items-center gap-1">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                </svg>
+                                                {{ article.source }}
+                                            </span>
+                                            <span class="inline-flex items-center gap-1">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                </svg>
+                                                {{ formatDate(article.published_at) }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="flex-shrink-0 flex items-center gap-2">
+                                        <button
+                                            @click="analyzeNews(article)"
+                                            class="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                                            title="Ask AI to analyze this news"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                                            </svg>
+                                        </button>
+                                        <a
+                                            :href="article.url"
+                                            target="_blank"
+                                            class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+                                            title="Read full article"
+                                        >
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- No News -->
+                <div v-else-if="!isLoadingNews && newsItems.length === 0" class="text-center py-12">
+                    <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path>
+                    </svg>
+                    <p class="text-gray-600 dark:text-gray-400">No news articles available.</p>
+                    <button @click="fetchNews()" class="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 text-sm font-medium mt-2">
+                        Fetch News
+                    </button>
+                </div>
+            </div>
+        </div>
         
         <!-- Input Area -->
         <div class="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3">
@@ -310,14 +491,76 @@ const modelDropdownRef = ref(null);
 const systemPromptDropdownRef = ref(null);
 const currentChat = reactive({ ...props.chat });
 
-
+// News functionality
+const activeTab = ref('chat');
+const isLoadingNews = ref(false);
+const newsError = ref('');
+const newsItems = ref([]);
+const selectedNewsSource = ref('');
+const newsSources = ref([
+    'CoinDesk',
+    'CoinTelegraph',
+    'NewsBTC',
+]);
 
 // Check if user has selected a system prompt
 const hasSelectedSystemPrompt = computed(() => {
     return currentChat.system_prompt && currentChat.system_prompt.id;
 });
 
+// Fetch news 
+const fetchNews = async () => {
+    // Switch to news tab when fetching news
+    activeTab.value = 'news';
+    isLoadingNews.value = true;
+    newsError.value = '';
 
+    try {
+        const params = {
+            limit: 20,
+            ...(selectedNewsSource.value && { source: selectedNewsSource.value })
+        };
+
+        const response = await axios.get('/api/news', { params });
+        newsItems.value = response.data.news || [];
+        
+        if (newsItems.value.length === 0) {
+            newsError.value = 'No news articles found. Please try again later.';
+        }
+    } catch (error) {
+        console.error('Error fetching news:', error);
+        let errorMessage = 'Failed to fetch news. Please try again later.';
+        
+        if (error.response?.status === 429) {
+            errorMessage = 'Too many requests. Please wait a moment and try again.';
+        } else if (error.response?.status >= 500) {
+            errorMessage = 'Server error. Please try again later.';
+        } else if (error.code === 'NETWORK_ERROR') {
+            errorMessage = 'Network error. Please check your connection.';
+        }
+        
+        newsError.value = errorMessage;
+        newsItems.value = [];
+    } finally {
+        isLoadingNews.value = false;
+    }
+};
+
+// Format date for display
+const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
+
+// Refresh news manually
+const refreshNews = () => {
+    fetchNews();
+};
 
 // Configure marked for better markdown rendering
 marked.setOptions({
@@ -352,7 +595,33 @@ const renderMarkdown = (content) => {
     }
 };
 
+// Analyze news article with AI
+const analyzeNews = (article) => {
+    // Switch to chat tab
+    activeTab.value = 'chat';
+    
+    // Create analysis template and fill the input field (let user send manually)
+    const analysisTemplate = `Please analyze this crypto news:
 
+Title: ${article.title}
+Source: ${article.source}
+
+Key points: ${article.description}
+
+What are the trading implications?`;
+
+    // Set the question in input field but don't auto-send
+    messageInput.value = analysisTemplate;
+    
+    // Focus the input field
+    nextTick(() => {
+        const textarea = document.querySelector('textarea[placeholder="Type your message..."]');
+        if (textarea) {
+            textarea.focus();
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+        }
+    });
+};
 
 const sendMessage = async () => {
     if (!messageInput.value.trim() || isLoading.value) return;
